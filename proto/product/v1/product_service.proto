@@ -1,0 +1,127 @@
+syntax = "proto3";
+package product.v1;
+
+option go_package = "github.com/murkotick/product-catalog-service/proto/product/v1;productv1";
+
+import "google/protobuf/timestamp.proto";
+
+service ProductService {
+    // Commands (Mutations)
+    rpc CreateProduct(CreateProductRequest) returns (CreateProductReply);
+    rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductReply);
+    rpc ActivateProduct(ActivateProductRequest) returns (ActivateProductReply);
+    rpc DeactivateProduct(DeactivateProductRequest) returns (DeactivateProductReply);
+    rpc ApplyDiscount(ApplyDiscountRequest) returns (ApplyDiscountReply);
+    rpc RemoveDiscount(RemoveDiscountRequest) returns (RemoveDiscountReply);
+
+    // Queries (Reads)
+    rpc GetProduct(GetProductRequest) returns (GetProductReply);
+    rpc ListProducts(ListProductsRequest) returns (ListProductsReply);
+}
+
+
+// Represents money using numerator and denominator to align with math/big.Rat 
+// and the base_price_numerator/denominator fields in Spanner.
+message Money {
+    int64 numerator = 1;
+    int64 denominator = 2;
+}
+
+enum ProductStatus {
+    PRODUCT_STATUS_UNSPECIFIED = 0;
+    PRODUCT_STATUS_ACTIVE = 1;
+    PRODUCT_STATUS_INACTIVE = 2;
+    PRODUCT_STATUS_ARCHIVED = 3;
+}
+
+message Discount {
+    // Passed as a string to preserve exact decimal precision when parsing to big.Rat
+    string percentage = 1; 
+    google.protobuf.Timestamp start_date = 2;
+    google.protobuf.Timestamp end_date = 3;
+}
+
+// The comprehensive Product Read Model used in Query replies
+message Product {
+    string id = 1;
+    string name = 2;
+    string description = 3;
+    string category = 4;
+    Money base_price = 5;
+    Money effective_price = 6; // Calculated dynamically
+    Discount active_discount = 7; // Optional: only populated if a discount is active
+    ProductStatus status = 8;
+    google.protobuf.Timestamp created_at = 9;
+    google.protobuf.Timestamp updated_at = 10;
+		google.protobuf.Timestamp archived_at = 11;
+}
+
+
+message CreateProductRequest {
+    string name = 1;
+    string description = 2;
+    string category = 3;
+    Money base_price = 4;
+}
+
+message CreateProductReply {
+    string product_id = 1;
+}
+
+message UpdateProductRequest {
+    string product_id = 1;
+    // Using optional fields to support partial updates easily.
+    optional string name = 2;
+    optional string description = 3;
+    optional string category = 4;
+}
+
+message UpdateProductReply {}
+
+message ActivateProductRequest {
+    string product_id = 1;
+}
+
+message ActivateProductReply {}
+
+message DeactivateProductRequest {
+    string product_id = 1;
+}
+
+message DeactivateProductReply {}
+
+message ApplyDiscountRequest {
+    string product_id = 1;
+    Discount discount = 2;
+}
+
+message ApplyDiscountReply {}
+
+message RemoveDiscountRequest {
+    string product_id = 1;
+}
+
+message RemoveDiscountReply {}
+
+message GetProductRequest {
+    string product_id = 1;
+		// Optional: Enables deterministic temporal queries for effective price.
+    // If omitted, the server defaults to the current time.
+    optional google.protobuf.Timestamp at_time = 2;
+}
+
+message GetProductReply {
+    Product product = 1;
+}
+
+message ListProductsRequest {
+    int32 page_size = 1;
+    string page_token = 2;
+    
+    optional string category = 3;
+}
+
+message ListProductsReply {
+    repeated Product products = 1;
+    string next_page_token = 2;
+}

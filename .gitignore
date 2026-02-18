@@ -1,0 +1,65 @@
+# =========================
+# Go build outputs
+# =========================
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+*.coverprofile
+*.coverage
+*.pprof
+
+/bin/
+/dist/
+/build/
+tmp/
+.tmp/
+*.log
+
+# Go workspace / tool files
+go.work
+go.work.sum
+
+# =========================
+# IDEs / editors
+# =========================
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# =========================
+# Docker / local env
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# Spanner emulator (if you ever store local state)
+# =========================
+spanner-data/
+.spanner/
+
+# =========================
+# Proto generation outputs
+# =========================
+# If you DO NOT want to commit generated pb.go files, uncomment:
+proto/**/*.pb.go
+proto/**/*_grpc.pb.go
+proto/**/.cache/
+
+# =========================
+# Test artifacts
+# =========================
+coverage/
+reports/
+test-results/

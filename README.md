@@ -94,54 +94,67 @@ Domain aggregates track which fields have been modified. Repositories consult th
 ## Prerequisites
 
 - Go 1.21 or later
-- Docker and Docker Compose
-- gcloud CLI (for Spanner emulator management)
-- Protocol Buffers compiler (protoc)
+- Docker + Docker Compose
+- Protocol Buffers compiler (`protoc`) + Go plugins
 
 ## Quick Start
 
 ### 1. Start the Spanner Emulator
 
 ```bash
-make docker-up
+docker compose up -d
 ```
 
-This will:
+Then make sure your shell can reach it from the host:
 
-- Start the Spanner emulator container
-- Create the test instance and database
-- Wait for the emulator to be ready
+```bash
+export SPANNER_EMULATOR_HOST=localhost:9010
+```
+
+**Windows PowerShell:**
+
+```powershell
+$env:SPANNER_EMULATOR_HOST = "localhost:9010"
+```
 
 ### 2. Run Database Migrations
+
+Migrations are applied via a small Go helper that calls Spanner's Admin API against the emulator.
 
 ```bash
 make migrate
 ```
 
-This applies the schema defined in `migrations/001_initial_schema.sql`, creating the `products` and `outbox_events` tables with necessary indexes.
+This applies `migrations/001_initial_schema.sql` to the database referenced by `SPANNER_DATABASE` (defaults are in the `Makefile`).
 
 ### 3. Generate Protocol Buffers
 
+Install generators:
+
+```bash
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+```
+
+Ensure `%GOPATH%\bin` is on your PATH (Windows) or `$(go env GOPATH)/bin` (macOS/Linux), then:
+
+```bash
+protoc -I proto `
+--go_out=proto --go_opt=paths=source_relative `
+--go-grpc_out=proto --go-grpc_opt=paths=source_relative `
+proto/product/v1/product_service.proto
+```
 ```bash
 make proto
 ```
 
-This generates Go code from the proto definitions in `proto/product/v1/product_service.proto`.
-
 ### 4. Run Tests
 
 ```bash
-# Run all tests (unit + E2E)
 make test
-
-# Run only unit tests
-make test-unit
-
-# Run only E2E tests
-make test-e2e
 ```
 
-The E2E tests automatically ensure the Spanner emulator is running.
+The E2E tests run against the emulator and create a unique database per `go test` run (so they don't fight with each other).
 
 ### 5. Start the gRPC Server
 
@@ -149,44 +162,15 @@ The E2E tests automatically ensure the Spanner emulator is running.
 make run
 ```
 
-The server will start on port 50051 by default.
+The server starts on `:50051` by default.
 
 ## Development Workflow
 
-### One-Command Setup
+Run `make help` to see available targets. The required ones for the assignment are:
 
-```bash
-make dev
-```
-
-This runs docker-up, migrate, and proto generation in sequence.
-
-### Reset Database
-
-```bash
-make reset
-```
-
-This stops the emulator, recreates the instance/database, and runs migrations.
-
-### Available Make Targets
-
-Run `make help` to see all available commands:
-
-- `setup` - Install development dependencies
-- `docker-up` - Start Spanner emulator
-- `docker-down` - Stop Spanner emulator
-- `docker-logs` - Show emulator logs
-- `migrate` - Run database migrations
-- `proto` - Generate gRPC code
-- `build` - Build the service binary
-- `run` - Start the gRPC server
-- `test` - Run all tests
-- `test-unit` - Run unit tests only
-- `test-e2e` - Run E2E tests
-- `lint` - Run linters
-- `fmt` - Format code
-- `clean` - Remove build artifacts
+- `make migrate`
+- `make test`
+- `make run`
 
 ## Testing Strategy
 
@@ -224,6 +208,7 @@ product-catalog-service/
 │   │   │   ├── discount.go         # Discount value object
 │   │   │   ├── money.go            # Money value object
 │   │   │   ├── domain_events.go    # Event definitions
+│   │   │   ├── change_tracker.go
 │   │   │   └── services/
 │   │   │       └── pricing_calculator.go
 │   │   ├── usecases/               # Application commands
@@ -240,7 +225,6 @@ product-catalog-service/
 │   │   ├── m_product/
 │   │   └── m_outbox/
 │   ├── transport/grpc/             # gRPC handlers
-│   ├── services/                   # DI container
 │   └── pkg/                        # Shared utilities
 ├── proto/product/v1/               # gRPC API definitions
 ├── migrations/                     # Database schema
@@ -337,15 +321,14 @@ All commands publish domain events to the outbox table for downstream integratio
 ## Environment Variables
 
 ```bash
-# Spanner Configuration
-export SPANNER_EMULATOR_HOST=localhost:9010
-export SPANNER_PROJECT_ID=test-project
-export SPANNER_INSTANCE_ID=test-instance
-export SPANNER_DATABASE_ID=product-catalog
+# Emulator endpoint (required)
+SPANNER_EMULATOR_HOST=localhost:9010
 
-# Server Configuration
-export GRPC_PORT=50051
-export LOG_LEVEL=info
+# Full database resource name used by server + migrate tool
+SPANNER_DATABASE=projects/test-project/instances/emulator-instance/databases/test-db
+
+# Server
+GRPC_PORT=50051
 ```
 
 ## Troubleshooting

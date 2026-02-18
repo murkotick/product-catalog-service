@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  spanner-emulator:
+    image: gcr.io/cloud-spanner-emulator/emulator:latest
+    container_name: spanner-emulator
+    ports:
+      - "9010:9010"   # gRPC (clients)
+      - "9020:9020"   # REST / gcloud override
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:9020/"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  spanner-init:
+    image: google/cloud-sdk:latest
+    container_name: spanner-init
+    depends_on:
+      spanner-emulator:
+        condition: service_healthy
+    environment:
+      # Inside docker network other services reach emulator at host 'spanner-emulator:9010'
+      - SPANNER_EMULATOR_HOST=spanner-emulator:9010
+    volumes:
+      - ./ddl:/ddl:ro   # put schema.sql here (optional)
+    entrypoint: /bin/sh -c
+    command:
+      - |
+        "
+        # create a dedicated gcloud config for emulator and point gcloud to the emulator REST endpoint
+        gcloud config configurations create emulator || true
+        gcloud config set auth/disable_credentials true
+        gcloud config set project test-project
+        gcloud config set api_endpoint_overrides/spanner http://spanner-emulator:9020/
+
+        # wait for REST API to be ready
+        until curl -fs http://spanner-emulator:9020/v1/projects/test-project >/dev/null 2>&1; do
+          echo waiting for spanner emulator...
+          sleep 1
+        done
+
+        # create instance (emulator-config is a built-in config for the emulator)
+        gcloud spanner instances create emulator-instance --config=emulator-config --description='Local emulator instance' --nodes=1 || true
+
+        # create database (use your DDL if present)
+        if [ -f /ddl/schema.sql ]; then
+          gcloud spanner databases create test-db --instance=emulator-instance --database-dialect=GOOGLE_STANDARD_SQL --ddl-file=/ddl/schema.sql || true
+        else
+          gcloud spanner databases create test-db --instance=emulator-instance --database-dialect=GOOGLE_STANDARD_SQL || true
+        fi
+
+        # keep the container alive (so you can exec into it if needed)
+        tail -f /dev/null
+        "
