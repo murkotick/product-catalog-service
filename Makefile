@@ -12,7 +12,7 @@ help:
 	@echo "  docker-up     Start the Spanner emulator (and init container)"
 	@echo "  docker-down   Stop the emulator"
 	@echo "  docker-logs   Tail emulator logs"
-	@echo "  proto         Generate Go code from proto" 
+	@echo "  proto         Generate Go code from proto"
 	@echo "  migrate       Apply Spanner DDL (requires emulator running)"
 	@echo "  test          Run all tests"
 	@echo "  test-unit     Run unit tests only"

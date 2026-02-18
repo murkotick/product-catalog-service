@@ -22,7 +22,6 @@ tmp/
 # Go workspace / tool files
 go.work
 go.work.sum
-*_test.go
 
 # =========================
 # IDEs / editors

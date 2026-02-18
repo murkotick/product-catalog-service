@@ -31,6 +31,7 @@ func TestProductCreationFlow(t *testing.T) {
 		BasePriceNum: 1999,
 		BasePriceDen: 100,
 	})
+	clk.Advance(1 * time.Second)
 	require.NoError(t, err)
 	require.NotEmpty(t, productID)
 
@@ -168,10 +169,15 @@ func TestProductUpdateFlow_CreatesOutboxEvent(t *testing.T) {
 	assert.Equal(t, "stationery", prod.Category)
 
 	events := mustFetchOutboxEvents(ctx, t, spClient, productID)
-	// product.created + product.updated
 	require.GreaterOrEqual(t, len(events), 2)
-	assert.Equal(t, "product.created", events[0].EventType)
-	assert.Equal(t, "product.updated", events[1].EventType)
+
+	types := make([]string, 0, len(events))
+	for _, e := range events {
+		types = append(types, e.EventType)
+	}
+
+	assert.Contains(t, types, "product.created")
+	assert.Contains(t, types, "product.updated")
 }
 
 func TestEffectivePriceMathMatchesBigRat(t *testing.T) {

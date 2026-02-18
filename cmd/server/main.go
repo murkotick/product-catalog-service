@@ -28,7 +28,7 @@ import (
 
 func main() {
 	addr := env("GRPC_ADDR", ":50051")
-	spannerDB := env("SPANNER_DATABASE", "projects/local-project/instances/test-instance/databases/test-db")
+	spannerDB := env("SPANNER_DATABASE", "projects/test-project/instances/emulator-instance/databases/test-db")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

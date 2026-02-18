@@ -2,7 +2,6 @@ package get_product
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -51,7 +50,7 @@ func (q *SpannerGetProductQuery) GetProduct(ctx context.Context, productID strin
 		category                   string
 		baseNum                    int64
 		baseDen                    int64
-		discountPercent            spanner.NullString
+		discountPercent            spanner.NullNumeric
 		discountStart, discountEnd spanner.NullTime
 		status                     string
 		createdAt, updatedAt       time.Time
@@ -78,7 +77,7 @@ func (q *SpannerGetProductQuery) GetProduct(ctx context.Context, productID strin
 	}
 
 	if discountPercent.Valid {
-		dp := discountPercent.StringVal
+		dp := new(big.Rat).Set(&discountPercent.Numeric).FloatString(10)
 		dtoOut.DiscountPct = &dp
 	}
 
@@ -112,11 +111,11 @@ func (q *SpannerGetProductQuery) GetProduct(ctx context.Context, productID strin
 }
 
 // computeEffectivePrice returns the effective price as *big.Rat
-func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullString, start, end spanner.NullTime, now time.Time) (*big.Rat, error) {
+func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullNumeric, start, end spanner.NullTime, now time.Time) (*big.Rat, error) {
 	base := new(big.Rat).SetFrac(big.NewInt(baseNum), big.NewInt(baseDen))
 
 	// no discount present
-	if !discountPercent.Valid || discountPercent.StringVal == "" {
+	if !discountPercent.Valid {
 		return base, nil
 	}
 
@@ -128,26 +127,11 @@ func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullS
 		return base, nil
 	}
 
-	// discountPercent.StringVal is held as decimal string (NUMERIC) or percentage string.
-	// Try big.Rat parse first (handles "0.25" or "0.20"), if that fails, try to parse as float percentage "25" -> 0.25
-	discRat := new(big.Rat)
-	if _, ok := discRat.SetString(discountPercent.StringVal); ok {
-		// If discount is > 1 (e.g., "25"), treat as percent and divide by 100
-		one := new(big.Rat).SetInt64(1)
-		if discRat.Cmp(one) == 1 { // discRat > 1
-			discRat = new(big.Rat).Quo(discRat, new(big.Rat).SetInt64(100))
-		}
-	} else {
-		// fallback: try parse float
-		var f float64
-		_, err := fmt.Sscanf(discountPercent.StringVal, "%f", &f)
-		if err != nil {
-			return nil, fmt.Errorf("invalid discount percent format: %s", discountPercent.StringVal)
-		}
-		discRat = new(big.Rat).SetFloat64(f)
-		if discRat.Cmp(new(big.Rat).SetInt64(1)) == 1 {
-			discRat = new(big.Rat).Quo(discRat, new(big.Rat).SetInt64(100))
-		}
+	// discount_percent is stored as a NUMERIC (0.0-1.0 scale) and decoded into big.Rat.
+	discRat := new(big.Rat).Set(&discountPercent.Numeric)
+	// Defensive: if stored as "20" rather than "0.20", normalize to 0-1 scale.
+	if discRat.Cmp(big.NewRat(1, 1)) == 1 {
+		discRat.Quo(discRat, big.NewRat(100, 1))
 	}
 
 	discountAmount := new(big.Rat).Mul(base, discRat)

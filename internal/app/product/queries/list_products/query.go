@@ -2,7 +2,6 @@ package list_products
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -56,7 +55,7 @@ func (q *SpannerListProductsQuery) ListActiveProducts(ctx context.Context, categ
 			categoryStr                string
 			baseNum                    int64
 			baseDen                    int64
-			discountPct                spanner.NullString
+			discountPct                spanner.NullNumeric
 			discountStart, discountEnd spanner.NullTime
 		)
 		if err := row.Columns(&id, &name, &categoryStr, &baseNum, &baseDen, &discountPct, &discountStart, &discountEnd); err != nil {
@@ -81,10 +80,10 @@ func (q *SpannerListProductsQuery) ListActiveProducts(ctx context.Context, categ
 }
 
 // computeEffectivePrice mirrors the helper from get_product.
-func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullString, start, end spanner.NullTime, now time.Time) (*big.Rat, error) {
+func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullNumeric, start, end spanner.NullTime, now time.Time) (*big.Rat, error) {
 	base := new(big.Rat).SetFrac(big.NewInt(baseNum), big.NewInt(baseDen))
 
-	if !discountPercent.Valid || discountPercent.StringVal == "" {
+	if !discountPercent.Valid {
 		return base, nil
 	}
 	if start.Valid && now.Before(start.Time) {
@@ -94,12 +93,10 @@ func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullS
 		return base, nil
 	}
 
-	discRat := new(big.Rat)
-	if _, ok := discRat.SetString(discountPercent.StringVal); !ok {
-		return nil, fmt.Errorf("invalid discount_percent: %q", discountPercent.StringVal)
-	}
-	if discRat.Cmp(new(big.Rat).SetInt64(1)) == 1 {
-		discRat = new(big.Rat).Quo(discRat, new(big.Rat).SetInt64(100))
+	discRat := new(big.Rat).Set(&discountPercent.Numeric)
+	// Defensive: if stored as "20" rather than "0.20", normalize to 0-1 scale.
+	if discRat.Cmp(big.NewRat(1, 1)) == 1 {
+		discRat.Quo(discRat, big.NewRat(100, 1))
 	}
 
 	discountAmount := new(big.Rat).Mul(base, discRat)

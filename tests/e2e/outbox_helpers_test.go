@@ -15,7 +15,6 @@ type outboxEvent struct {
 	EventType   string
 	AggregateID string
 	Status      string
-	Payload     string
 	CreatedAt   time.Time
 }
 
@@ -28,11 +27,11 @@ func mustFetchOutboxEvents(ctx context.Context, t *testing.T, client *spanner.Cl
 
 func fetchOutboxEvents(ctx context.Context, client *spanner.Client, aggregateID string) ([]outboxEvent, error) {
 	stmt := spanner.Statement{
-		SQL: `SELECT event_id, event_type, aggregate_id, status, CAST(payload AS STRING), created_at
-		      FROM outbox_events
-		      WHERE aggregate_id = @id
-		      ORDER BY created_at ASC`,
-		Params: map[string]interface{}{"id": aggregateID},
+		SQL: `SELECT event_id, event_type, aggregate_id, status, created_at
+        FROM outbox_events
+        WHERE aggregate_id = @id
+        ORDER BY created_at ASC, event_id ASC`,
+		Params: map[string]any{"id": aggregateID},
 	}
 
 	iter := client.Single().Query(ctx, stmt)
@@ -48,7 +47,7 @@ func fetchOutboxEvents(ctx context.Context, client *spanner.Client, aggregateID 
 			return nil, err
 		}
 		var e outboxEvent
-		if err := row.Columns(&e.EventID, &e.EventType, &e.AggregateID, &e.Status, &e.Payload, &e.CreatedAt); err != nil {
+		if err := row.Columns(&e.EventID, &e.EventType, &e.AggregateID, &e.Status, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, e)

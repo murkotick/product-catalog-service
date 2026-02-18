@@ -139,12 +139,6 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 Ensure `%GOPATH%\bin` is on your PATH (Windows) or `$(go env GOPATH)/bin` (macOS/Linux), then:
 
 ```bash
-protoc -I proto `
---go_out=proto --go_opt=paths=source_relative `
---go-grpc_out=proto --go-grpc_opt=paths=source_relative `
-proto/product/v1/product_service.proto
-```
-```bash
 make proto
 ```
 

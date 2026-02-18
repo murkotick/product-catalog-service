@@ -60,7 +60,8 @@ func TestMain(m *testing.M) {
 	projectID := env("SPANNER_PROJECT_ID", "test-project")
 	instanceID := env("SPANNER_INSTANCE_ID", "emulator-instance")
 	// Use a unique database per "go test" run to avoid flakiness and id collisions.
-	databaseID := fmt.Sprintf("e2e_%s", strings.ReplaceAll(uuid.New().String(), "-", ""))
+	// Spanner database IDs must be 2-30 chars, start with a lowercase letter.
+	databaseID := shortDBID()
 
 	parent := fmt.Sprintf("projects/%s", projectID)
 	instName := fmt.Sprintf("%s/instances/%s", parent, instanceID)
@@ -176,8 +177,13 @@ func ensureInstance(ctx context.Context, admin *instance.InstanceAdminClient, pa
 }
 
 func deleteDatabase(ctx context.Context, admin *database.DatabaseAdminClient, db string) error {
-	err := admin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: db})
-	return err
+	return admin.DropDatabase(ctx, &databasepb.DropDatabaseRequest{Database: db})
+}
+
+func shortDBID() string {
+	// "e2e_" + 12 hex chars => 16 total chars (well under Spanner's 30-char limit)
+	hex := strings.ReplaceAll(uuid.New().String(), "-", "")
+	return "e2e_" + hex[:12]
 }
 
 func splitDDL(sql string) []string {
