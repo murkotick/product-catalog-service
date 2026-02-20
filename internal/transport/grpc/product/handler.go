@@ -13,16 +13,20 @@ import (
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/activate_product"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/apply_discount"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/create_product"
+	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/deactivate_product"
+	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/remove_discount"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/update_product"
 )
 
 // Commands groups write interactors.
 // Keep transport layer depending on application layer only.
 type Commands struct {
-	Create   *create_product.Interactor
-	Update   *update_product.Interactor
-	Activate *activate_product.Interactor
-	ApplyDis *apply_discount.Interactor
+	Create     *create_product.Interactor
+	Update     *update_product.Interactor
+	Activate   *activate_product.Interactor
+	Deactivate *deactivate_product.Interactor
+	ApplyDis   *apply_discount.Interactor
+	RemoveDis  *remove_discount.Interactor
 }
 
 // Queries groups read handlers.
@@ -86,8 +90,14 @@ func (h *Handler) ActivateProduct(ctx context.Context, req *productv1.ActivatePr
 }
 
 func (h *Handler) DeactivateProduct(ctx context.Context, req *productv1.DeactivateProductRequest) (*productv1.DeactivateProductReply, error) {
-	// NOTE: application-layer interactor not implemented yet in Phase 4.
-	return nil, status.Error(codes.Unimplemented, "DeactivateProduct not implemented")
+	if req == nil || req.ProductId == "" {
+		return nil, status.Error(codes.InvalidArgument, "product_id is required")
+	}
+
+	if err := h.commands.Deactivate.Execute(ctx, deactivate_product.Request{ProductID: req.ProductId}); err != nil {
+		return nil, mapError(err)
+	}
+	return &productv1.DeactivateProductReply{}, nil
 }
 
 func (h *Handler) ApplyDiscount(ctx context.Context, req *productv1.ApplyDiscountRequest) (*productv1.ApplyDiscountReply, error) {
@@ -107,8 +117,14 @@ func (h *Handler) ApplyDiscount(ctx context.Context, req *productv1.ApplyDiscoun
 }
 
 func (h *Handler) RemoveDiscount(ctx context.Context, req *productv1.RemoveDiscountRequest) (*productv1.RemoveDiscountReply, error) {
-	// NOTE: application-layer interactor not implemented yet in Phase 4.
-	return nil, status.Error(codes.Unimplemented, "RemoveDiscount not implemented")
+	if req == nil || req.ProductId == "" {
+		return nil, status.Error(codes.InvalidArgument, "product_id is required")
+	}
+
+	if err := h.commands.RemoveDis.Execute(ctx, remove_discount.Request{ProductID: req.ProductId}); err != nil {
+		return nil, mapError(err)
+	}
+	return &productv1.RemoveDiscountReply{}, nil
 }
 
 func (h *Handler) GetProduct(ctx context.Context, req *productv1.GetProductRequest) (*productv1.GetProductReply, error) {

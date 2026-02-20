@@ -19,6 +19,8 @@ import (
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/activate_product"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/apply_discount"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/create_product"
+	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/deactivate_product"
+	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/remove_discount"
 	"github.com/murkotick/product-catalog-service/internal/app/product/usecases/update_product"
 	"github.com/murkotick/product-catalog-service/internal/pkg/clock"
 	committer "github.com/murkotick/product-catalog-service/internal/pkg/committer"
@@ -56,10 +58,12 @@ func main() {
 
 	// CQRS wiring
 	cmds := grpcproduct.Commands{
-		Create:   create_product.NewInteractor(prodRepo, outboxRepo, cm, clk),
-		Update:   update_product.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
-		Activate: activate_product.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
-		ApplyDis: apply_discount.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
+		Create:     create_product.NewInteractor(prodRepo, outboxRepo, cm, clk),
+		Update:     update_product.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
+		Activate:   activate_product.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
+		Deactivate: deactivate_product.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
+		ApplyDis:   apply_discount.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
+		RemoveDis:  remove_discount.NewInteractor(prodRepo, outboxRepo, cm, readModel, clk),
 	}
 	qrys := grpcproduct.Queries{
 		Get:  get_product.NewHandler(readModel),

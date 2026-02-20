@@ -119,11 +119,13 @@ func computeEffectivePrice(baseNum, baseDen int64, discountPercent spanner.NullN
 		return base, nil
 	}
 
-	// check validity window (start inclusive, end inclusive)
-	if start.Valid && now.Before(start.Time) {
+	// check validity window (start inclusive, end exclusive) to mirror domain.Discount.IsValidAt
+	// now >= end => expired
+	if end.Valid && !now.Before(end.Time) {
 		return base, nil
 	}
-	if end.Valid && now.After(end.Time) { // now > end => expired
+	// end is exclusive to mirror domain.Discount.IsValidAt
+	if end.Valid && !now.Before(end.Time) {
 		return base, nil
 	}
 

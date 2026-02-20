@@ -2,6 +2,44 @@ services:
   spanner-emulator:
     image: gcr.io/cloud-spanner-emulator/emulator:latest
     ports:
-      - "9010:9010" # gRPC (clients)
-      - "9020:9020" # REST
+      - "9010:9010"
+      - "9020:9020"
     restart: unless-stopped
+
+  spanner-init:
+    image: google/cloud-sdk:slim
+    depends_on:
+      - spanner-emulator
+    environment:
+      SPANNER_EMULATOR_HOST: spanner-emulator:9010
+      SPANNER_PROJECT_ID: ${SPANNER_PROJECT_ID:-test-project}
+      SPANNER_INSTANCE_ID: ${SPANNER_INSTANCE_ID:-emulator-instance}
+      SPANNER_DATABASE_ID: ${SPANNER_DATABASE_ID:-test-db}
+    command:
+      - bash
+      - -lc
+      - |
+        set -euo pipefail
+
+        echo "Waiting for Spanner emulator..."
+        for i in {1..30}; do
+          (echo > /dev/tcp/spanner-emulator/9010) >/dev/null 2>&1 && break
+          sleep 1
+        done
+
+        gcloud config set auth/disable_credentials true >/dev/null
+        gcloud config set project "$SPANNER_PROJECT_ID" >/dev/null
+        gcloud --quiet config set api_endpoint_overrides/spanner http://spanner-emulator:9020/ >/dev/null
+
+        echo "Creating instance (idempotent)..."
+        gcloud spanner instances create "$SPANNER_INSTANCE_ID" \
+          --config=emulator-config \
+          --description="Emulator instance" \
+          --nodes=1 >/dev/null 2>&1 || true
+
+        echo "Creating database (idempotent)..."
+        gcloud spanner databases create "$SPANNER_DATABASE_ID" \
+          --instance="$SPANNER_INSTANCE_ID" >/dev/null 2>&1 || true
+
+        echo "Spanner init done."
+    restart: "no"

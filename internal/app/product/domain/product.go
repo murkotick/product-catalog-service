@@ -333,7 +333,7 @@ func (p *Product) ApplyDiscount(discount *Discount, now time.Time) error {
 		return ErrDiscountNotValid
 	}
 
-	if p.discount != nil {
+	if p.discount != nil && p.discount.IsValidAt(now) {
 		return ErrDiscountAlreadyExists
 	}
 

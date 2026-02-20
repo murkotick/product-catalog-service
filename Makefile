@@ -21,7 +21,15 @@ help:
 	@echo "  dev           docker-up + migrate + proto"
 
 docker-up:
-	docker compose up -d spanner-emulator spanner-init
+	SPANNER_PROJECT_ID=$(SPANNER_PROJECT_ID) \
+	SPANNER_INSTANCE_ID=$(SPANNER_INSTANCE_ID) \
+	SPANNER_DATABASE_ID=$(SPANNER_DATABASE_ID) \
+	docker compose up -d spanner-emulator
+
+	SPANNER_PROJECT_ID=$(SPANNER_PROJECT_ID) \
+	SPANNER_INSTANCE_ID=$(SPANNER_INSTANCE_ID) \
+	SPANNER_DATABASE_ID=$(SPANNER_DATABASE_ID) \
+	docker compose run --rm spanner-init
 
 docker-down:
 	docker compose down

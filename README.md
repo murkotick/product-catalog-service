@@ -102,7 +102,7 @@ Domain aggregates track which fields have been modified. Repositories consult th
 ### 1. Start the Spanner Emulator
 
 ```bash
-docker compose up -d
+make docker-up
 ```
 
 Then make sure your shell can reach it from the host:
@@ -352,10 +352,12 @@ gcloud spanner databases list --instance=test-instance --project=test-project
 
 ### Tests Fail With Connection Errors
 
-The E2E tests automatically start the emulator, but if you see connection errors, manually verify:
+E2E tests create a unique database per run, but require the emulator to be running.:
 
 ```bash
-docker-compose ps
+make docker-up
+make docker-logs
+docker compose logs spanner-init
 ```
 
 If the container is not running:

@@ -24,6 +24,8 @@ func (a *Adapter) Apply(ctx context.Context, plan *Plan) error {
 		return fmt.Errorf("committer: spanner client is nil")
 	}
 
-	_, err := a.client.Apply(ctx, plan.Mutations())
+	_, err := a.client.ReadWriteTransaction(ctx, func(ctx context.Context, tx *spanner.ReadWriteTransaction) error {
+		return tx.BufferWrite(plan.Mutations())
+	})
 	return err
 }
